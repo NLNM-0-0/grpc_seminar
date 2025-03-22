@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProductService_PostProduct_FullMethodName     = "/seminar.product.v1.ProductService/PostProduct"
-	ProductService_GetProduct_FullMethodName      = "/seminar.product.v1.ProductService/GetProduct"
-	ProductService_GetProductByIds_FullMethodName = "/seminar.product.v1.ProductService/GetProductByIds"
+	ProductService_PostProduct_FullMethodName      = "/seminar.product.v1.ProductService/PostProduct"
+	ProductService_GetProduct_FullMethodName       = "/seminar.product.v1.ProductService/GetProduct"
+	ProductService_GetProductByIds_FullMethodName  = "/seminar.product.v1.ProductService/GetProductByIds"
+	ProductService_RateProductByIds_FullMethodName = "/seminar.product.v1.ProductService/RateProductByIds"
 )
 
 // ProductServiceClient is the client API for ProductService service.
@@ -30,7 +31,8 @@ const (
 type ProductServiceClient interface {
 	PostProduct(ctx context.Context, in *PostProductRequest, opts ...grpc.CallOption) (*PostProductResponse, error)
 	GetProduct(ctx context.Context, in *GetProductRequest, opts ...grpc.CallOption) (*GetProductResponse, error)
-	GetProductByIds(ctx context.Context, in *GetProductsByIdsRequest, opts ...grpc.CallOption) (*GetProductsByIdsResponse, error)
+	GetProductByIds(ctx context.Context, in *GetProductsByIdsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetProductsByIdsResponse], error)
+	RateProductByIds(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RateProductByIdsRequest, RateProductByIdsResponse], error)
 }
 
 type productServiceClient struct {
@@ -61,15 +63,37 @@ func (c *productServiceClient) GetProduct(ctx context.Context, in *GetProductReq
 	return out, nil
 }
 
-func (c *productServiceClient) GetProductByIds(ctx context.Context, in *GetProductsByIdsRequest, opts ...grpc.CallOption) (*GetProductsByIdsResponse, error) {
+func (c *productServiceClient) GetProductByIds(ctx context.Context, in *GetProductsByIdsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetProductsByIdsResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetProductsByIdsResponse)
-	err := c.cc.Invoke(ctx, ProductService_GetProductByIds_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ProductService_ServiceDesc.Streams[0], ProductService_GetProductByIds_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[GetProductsByIdsRequest, GetProductsByIdsResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProductService_GetProductByIdsClient = grpc.ServerStreamingClient[GetProductsByIdsResponse]
+
+func (c *productServiceClient) RateProductByIds(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RateProductByIdsRequest, RateProductByIdsResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ProductService_ServiceDesc.Streams[1], ProductService_RateProductByIds_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RateProductByIdsRequest, RateProductByIdsResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProductService_RateProductByIdsClient = grpc.BidiStreamingClient[RateProductByIdsRequest, RateProductByIdsResponse]
 
 // ProductServiceServer is the server API for ProductService service.
 // All implementations should embed UnimplementedProductServiceServer
@@ -77,7 +101,8 @@ func (c *productServiceClient) GetProductByIds(ctx context.Context, in *GetProdu
 type ProductServiceServer interface {
 	PostProduct(context.Context, *PostProductRequest) (*PostProductResponse, error)
 	GetProduct(context.Context, *GetProductRequest) (*GetProductResponse, error)
-	GetProductByIds(context.Context, *GetProductsByIdsRequest) (*GetProductsByIdsResponse, error)
+	GetProductByIds(*GetProductsByIdsRequest, grpc.ServerStreamingServer[GetProductsByIdsResponse]) error
+	RateProductByIds(grpc.BidiStreamingServer[RateProductByIdsRequest, RateProductByIdsResponse]) error
 }
 
 // UnimplementedProductServiceServer should be embedded to have
@@ -93,8 +118,11 @@ func (UnimplementedProductServiceServer) PostProduct(context.Context, *PostProdu
 func (UnimplementedProductServiceServer) GetProduct(context.Context, *GetProductRequest) (*GetProductResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProduct not implemented")
 }
-func (UnimplementedProductServiceServer) GetProductByIds(context.Context, *GetProductsByIdsRequest) (*GetProductsByIdsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProductByIds not implemented")
+func (UnimplementedProductServiceServer) GetProductByIds(*GetProductsByIdsRequest, grpc.ServerStreamingServer[GetProductsByIdsResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method GetProductByIds not implemented")
+}
+func (UnimplementedProductServiceServer) RateProductByIds(grpc.BidiStreamingServer[RateProductByIdsRequest, RateProductByIdsResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method RateProductByIds not implemented")
 }
 func (UnimplementedProductServiceServer) testEmbeddedByValue() {}
 
@@ -152,23 +180,23 @@ func _ProductService_GetProduct_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProductService_GetProductByIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetProductsByIdsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _ProductService_GetProductByIds_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetProductsByIdsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(ProductServiceServer).GetProductByIds(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProductService_GetProductByIds_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProductServiceServer).GetProductByIds(ctx, req.(*GetProductsByIdsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(ProductServiceServer).GetProductByIds(m, &grpc.GenericServerStream[GetProductsByIdsRequest, GetProductsByIdsResponse]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProductService_GetProductByIdsServer = grpc.ServerStreamingServer[GetProductsByIdsResponse]
+
+func _ProductService_RateProductByIds_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ProductServiceServer).RateProductByIds(&grpc.GenericServerStream[RateProductByIdsRequest, RateProductByIdsResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProductService_RateProductByIdsServer = grpc.BidiStreamingServer[RateProductByIdsRequest, RateProductByIdsResponse]
 
 // ProductService_ServiceDesc is the grpc.ServiceDesc for ProductService service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -185,11 +213,19 @@ var ProductService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetProduct",
 			Handler:    _ProductService_GetProduct_Handler,
 		},
+	},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "GetProductByIds",
-			Handler:    _ProductService_GetProductByIds_Handler,
+			StreamName:    "GetProductByIds",
+			Handler:       _ProductService_GetProductByIds_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "RateProductByIds",
+			Handler:       _ProductService_RateProductByIds_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "seminar/product/v1/product.proto",
 }

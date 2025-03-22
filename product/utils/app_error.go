@@ -47,9 +47,18 @@ func (e *AppError) Error() string {
 func ErrDB(err error) *AppError {
 	return NewErrorResponse(
 		err,
-		"Đã có lỗi xảy ra với cơ sở dữ liệu, xin hãy thử lại sau",
+		"An error occurred with the database, please try again later",
 		err.Error(),
-		"DB_ERROR",
+		DB_ERROR_CODE,
+	)
+}
+
+func ErrDuplicateDB(err error, field string) *AppError {
+	return NewErrorResponse(
+		err,
+		fmt.Sprintf("A duplicate entry error occurred in the database for field '%s'.", field),
+		err.Error(),
+		DB_DUPLICATE_ERROR_CODE,
 	)
 }
 
@@ -57,10 +66,16 @@ func ErrRecordNotFound() *AppError {
 	return NewCustomError(
 		errRecordNotFound,
 		fmt.Sprintf(errRecordNotFound.Error()),
-		fmt.Sprintf("ErrRecordNotFound"),
+		fmt.Sprintf(DB_RECORD_NOT_FOUND_CODE),
 	)
 }
 
 var (
 	errRecordNotFound = errors.New("record not found")
+)
+
+var (
+	DB_RECORD_NOT_FOUND_CODE = "DB_RECORD_NOT_FOUND"
+	DB_DUPLICATE_ERROR_CODE  = "DB_DUPLICATE_ERROR"
+	DB_ERROR_CODE            = "DB_ERROR"
 )

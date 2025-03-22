@@ -12,6 +12,7 @@ type ProductRepo interface {
 	CreateProduct(ctx context.Context, data *model.Product) error
 	GetProductById(ctx context.Context, productId string) (*model.Product, error)
 	GetProductByIds(ctx context.Context, productIds []string) ([]*model.Product, error)
+	SaveProduct(ctx context.Context, data *model.Product) error
 }
 
 type productRepo struct {
@@ -26,6 +27,13 @@ func (repo *productRepo) CreateProduct(ctx context.Context, data *model.Product)
 	db := repo.db
 
 	if err := db.Create(data).Error; err != nil {
+		println("Hello")
+		if gormErr := utils.GetGormErr(err); gormErr != nil {
+			switch key := gormErr.GetDuplicateErrorKey("name"); key {
+			case "name":
+				return utils.ErrDuplicateDB(err, "products.name")
+			}
+		}
 		return utils.ErrDB(err)
 	}
 
@@ -58,4 +66,14 @@ func (repo *productRepo) GetProductByIds(ctx context.Context, productIds []strin
 	}
 
 	return products, nil
+}
+
+func (repo *productRepo) SaveProduct(ctx context.Context, data *model.Product) error {
+	db := repo.db
+
+	if err := db.Save(data).Error; err != nil {
+		return utils.ErrDB(err)
+	}
+
+	return nil
 }
