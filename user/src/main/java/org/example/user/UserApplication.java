@@ -6,16 +6,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class UserApplication implements CommandLineRunner {
-	@Value("${spring.datasource.url}")
-	private String datasourceUrl;
-
+public class UserApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(UserApplication.class, args);
 	}
-	@Override
-	public void run(String... args) {
-		System.out.println("Datasource URL: " + datasourceUrl);
-	}
-
 }
