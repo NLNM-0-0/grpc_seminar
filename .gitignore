@@ -1,0 +1,22 @@
+# Maven
+target/
+*/.mvn/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+
+# Go
+bin/
+pkg/
+*.exe
+*.test
+*.out
+
+# Git ignore list for Go
+go.work
+go.work.sum
+go.sum
+go.mod

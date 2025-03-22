@@ -1,0 +1,19 @@
+CREATE DATABASE IF NOT EXISTS order_db;
+USE order_db;
+
+CREATE TABLE orders (
+    id VARCHAR(255) PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_id VARCHAR(255) NOT NULL,
+    total_price DOUBLE(10,2) NOT NULL
+);
+
+CREATE TABLE order_products (
+    id VARCHAR(255) PRIMARY KEY,
+    order_id VARCHAR(255) NOT NULL,
+    product_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    price DOUBLE(10,2) NOT NULL,
+    quantity INT UNSIGNED NOT NULL,
+    CONSTRAINT fk_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);

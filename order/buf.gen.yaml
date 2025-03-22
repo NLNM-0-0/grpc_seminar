@@ -1,0 +1,28 @@
+version: v2
+clean: true
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: .
+    - file_option: go_package
+      module: buf.build/googleapis/googleapis
+      value: order/gen/google/api
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: gen
+    include_imports: true
+    opt:
+      - paths=source_relative
+  - remote: buf.build/grpc/go
+    out: gen
+    opt:
+      - require_unimplemented_servers=false
+      - paths=source_relative
+    include_imports: true
+inputs:
+  - module: buf.build/nlnm-0-0/seminar
+    types:
+      - seminar.product.v1
+      - seminar.user.v1
+      - seminar.order.v1
