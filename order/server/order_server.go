@@ -2,17 +2,20 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
+	"io"
 	"log"
 	"net"
 	"order/client"
 	orderv1 "order/gen/seminar/order/v1"
+	productv1 "order/gen/seminar/product/v1"
 	"order/model"
 	"order/service"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"order/utils"
+	"sync"
 )
 
 type orderServer struct {
@@ -56,46 +59,79 @@ func (server *orderServer) PostOrder(
 	ctx context.Context,
 	request *orderv1.PostOrderRequest,
 ) (*orderv1.PostOrderResponse, error) {
-	_, err := server.userClient.GetUser(ctx, request.UserId)
+	ids := getProductIdsFromRequest(request)
+	stream, err := server.productClient.GetProductByIds(ctx, ids)
 	if err != nil {
-		log.Println("Error getting user: ", err)
-		return nil, errors.New("user not found")
+		log.Println(err)
+		return nil, utils.NewGrpcErrorWithMetadata(
+			codes.Aborted,
+			"Failed to receive stream request",
+			"STREAM_RECEIVE_ERROR",
+			err,
+			nil,
+		)
 	}
 
-	productIDs := []string{}
-	for _, p := range request.Products {
-		productIDs = append(productIDs, p.ProductId)
-	}
-	orderProducts, err := server.productClient.GetProductByIds(ctx, productIDs)
-	if err != nil {
-		log.Println("Error getting products: ", err)
-		return nil, errors.New("products not found")
-	}
-
-	products := []model.OrderProduct{}
-	for _, p := range orderProducts {
-		product := model.OrderProduct{
-			Id:       p.Id,
-			Quantity: 0,
-			Price:    p.Price,
-			Name:     p.Name,
+	var orderProducts []model.OrderProduct
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
 		}
-		for _, rp := range request.Products {
-			if rp.ProductId == p.Id {
-				product.Quantity += rp.Quantity
+		if err != nil {
+			log.Println(err)
+			return nil, utils.NewGrpcErrorWithMetadata(
+				codes.Internal,
+				"Failed to get product by ids",
+				"GET_PRODUCT_BY_IDS_ERROR",
+				err,
+				nil,
+			)
+		}
+
+		grpcProduct := res.GetProduct()
+
+		orderProduct := model.OrderProduct{
+			ProductId: grpcProduct.Id,
+			Quantity:  0,
+			Price:     grpcProduct.Price,
+			Name:      grpcProduct.Name,
+		}
+		orderProducts = append(orderProducts, orderProduct)
+	}
+
+	for _, requestProduct := range request.Products {
+		for i := range orderProducts {
+			if requestProduct.ProductId == orderProducts[i].ProductId {
+				orderProducts[i].Quantity += requestProduct.Quantity
 				break
 			}
 		}
-
-		if product.Quantity != 0 {
-			products = append(products, product)
-		}
 	}
 
-	order, err := server.orderService.CreateOrder(ctx, request.UserId, products)
+	if _, err = server.userClient.GetUser(ctx, request.UserId); err != nil {
+		log.Println(err)
+		return nil, utils.NewGrpcErrorWithMetadata(
+			codes.Internal,
+			fmt.Sprintf("Failed to get user with ID %s", request.UserId),
+			"GET_USER_ERROR",
+			err,
+			map[string]string{
+				"user_id": request.UserId,
+			},
+		)
+	}
+
+	order, err := server.orderService.CreateOrder(ctx, request.UserId, orderProducts)
 	if err != nil {
-		log.Println("Error posting order: ", err)
-		return nil, errors.New("could not post order")
+		log.Println(err)
+		return nil, utils.NewGrpcErrorWithMetadata(
+			codes.Internal,
+			"Failed to create order",
+			"CREATE_ORDER_ERROR",
+			err,
+			nil,
+		)
 	}
 
 	orderProto := &orderv1.Order{
@@ -118,60 +154,100 @@ func (server *orderServer) PostOrder(
 	}, nil
 }
 
-func (server *orderServer) GetOrdersForUser(
-	ctx context.Context,
-	request *orderv1.GetOrdersForUserRequest,
-) (*orderv1.GetOrdersForUserResponse, error) {
-	userOrders, err := server.orderService.GetOrdersForUser(ctx, request.UserId)
+func getProductIdsFromRequest(request *orderv1.PostOrderRequest) []string {
+	var productIds []string
+	for _, product := range request.Products {
+		productIds = append(productIds, product.ProductId)
+	}
+	return productIds
+}
+
+func (server *orderServer) RateOrder(ctx context.Context, request *orderv1.RateOrderRequest) (*orderv1.RateOrderResponse, error) {
+	stream, err := server.productClient.RateProductByIds(ctx)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return nil, utils.NewGrpcErrorWithMetadata(
+			codes.Unknown,
+			"Failed to call RateProductByIds",
+			"RATE_PRODUCT_ERROR",
+			err,
+			nil,
+		)
 	}
 
-	productIDMap := map[string]bool{}
-	for _, o := range userOrders {
-		for _, p := range o.Products {
-			productIDMap[p.Id] = true
-		}
-	}
-	var productIDs []string
-	for id := range productIDMap {
-		productIDs = append(productIDs, id)
-	}
-	products, err := server.productClient.GetProductByIds(ctx, productIDs)
-	if err != nil {
-		log.Println("Error getting user products: ", err)
-		return nil, err
-	}
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
 
-	var orders []*orderv1.Order
-	for _, o := range userOrders {
-		order := &orderv1.Order{
-			UserId:     o.UserId,
-			Id:         o.Id,
-			TotalPrice: o.TotalPrice,
-			Products:   []*orderv1.Order_OrderProduct{},
-		}
-		order.CreatedAt, _ = o.CreatedAt.MarshalBinary()
-
-		for _, product := range o.Products {
-			for _, p := range products {
-				if p.Id == product.ProductId {
-					product.Name = p.Name
-					product.Price = p.Price
-					break
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, rating := range request.Products {
+			if err := stream.Send(rating); err != nil {
+				log.Println(err)
+				select {
+				case errCh <- utils.NewGrpcErrorWithMetadata(
+					codes.Aborted,
+					fmt.Sprintf("Failed to send stream request"),
+					"STREAM_SEND_ERROR",
+					err,
+					nil,
+				):
+				default:
 				}
+				return
 			}
-
-			order.Products = append(order.Products, &orderv1.Order_OrderProduct{
-				ProductId: product.Id,
-				Name:      product.Name,
-				Price:     product.Price,
-				Quantity:  product.Quantity,
-			})
 		}
 
-		orders = append(orders, order)
+		if err := stream.CloseSend(); err != nil {
+			log.Println(err)
+			select {
+			case errCh <- utils.NewGrpcErrorWithMetadata(
+				codes.Aborted,
+				fmt.Sprintf("Failed to close stream request"),
+				"STREAM_CLOSE_ERROR",
+				err,
+				nil,
+			):
+			default:
+			}
+		}
+	}()
+
+	var responses []*productv1.RateProductByIdsResponse
+
+	for {
+		select {
+		case err := <-errCh:
+			return nil, err
+		default:
+		}
+
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Println(err)
+			return nil, utils.NewGrpcErrorWithMetadata(
+				codes.Internal,
+				"Failed to receive stream response",
+				"STREAM_RECEIVE_ERROR",
+				err,
+				nil,
+			)
+		}
+		responses = append(responses, res)
 	}
-	return &orderv1.GetOrdersForUserResponse{Orders: orders}, nil
+
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		return nil, err
+	default:
+	}
+
+	return &orderv1.RateOrderResponse{
+		Ratings: responses,
+	}, nil
 }

@@ -62,17 +62,14 @@ func ErrDuplicateDB(err error, field string) *AppError {
 	)
 }
 
-func ErrRecordNotFound() *AppError {
-	return NewCustomError(
-		errRecordNotFound,
-		fmt.Sprintf(errRecordNotFound.Error()),
-		fmt.Sprintf(DB_RECORD_NOT_FOUND_CODE),
+func ErrRecordNotFound(err error, field string) *AppError {
+	return NewErrorResponse(
+		err,
+		fmt.Sprintf("Could not find a record with field '%s'", field),
+		err.Error(),
+		DB_RECORD_NOT_FOUND_CODE,
 	)
 }
-
-var (
-	errRecordNotFound = errors.New("record not found")
-)
 
 var (
 	DB_RECORD_NOT_FOUND_CODE = "DB_RECORD_NOT_FOUND"

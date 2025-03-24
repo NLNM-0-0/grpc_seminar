@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 )
 
@@ -47,20 +46,12 @@ func (e *AppError) Error() string {
 func ErrDB(err error) *AppError {
 	return NewErrorResponse(
 		err,
-		"Đã có lỗi xảy ra với cơ sở dữ liệu, xin hãy thử lại sau",
+		"An error occurred with the database, please try again later",
 		err.Error(),
-		"DB_ERROR",
-	)
-}
-
-func ErrRecordNotFound() *AppError {
-	return NewCustomError(
-		errRecordNotFound,
-		fmt.Sprintf(errRecordNotFound.Error()),
-		fmt.Sprintf("ErrRecordNotFound"),
+		DB_ERROR_CODE,
 	)
 }
 
 var (
-	errRecordNotFound = errors.New("record not found")
+	DB_ERROR_CODE = "DB_ERROR"
 )

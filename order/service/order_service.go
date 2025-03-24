@@ -10,7 +10,6 @@ import (
 
 type OrderService interface {
 	CreateOrder(ctx context.Context, userId string, products []model.OrderProduct) (*model.Order, error)
-	GetOrdersForUser(ctx context.Context, userId string) ([]model.Order, error)
 }
 
 type orderService struct {
@@ -34,8 +33,9 @@ func (service orderService) CreateOrder(
 	}
 
 	order.TotalPrice = 0.0
-	for _, p := range products {
-		order.TotalPrice += p.Price * float64(p.Quantity)
+	for i := range order.Products {
+		order.Products[i].Id = ksuid.New().String()
+		order.TotalPrice += order.Products[i].Price * float64(order.Products[i].Quantity)
 	}
 
 	err := service.repository.CreateOrder(ctx, *order)
@@ -43,8 +43,4 @@ func (service orderService) CreateOrder(
 		return nil, err
 	}
 	return order, nil
-}
-
-func (service orderService) GetOrdersForUser(ctx context.Context, userId string) ([]model.Order, error) {
-	return service.repository.GetOrdersForUser(ctx, userId)
 }

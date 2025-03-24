@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	userv1 "order/gen/seminar/user/v1"
 )
 
@@ -16,7 +17,7 @@ type userClient struct {
 }
 
 func NewUserClient(url string) (*userClient, error) {
-	conn, err := grpc.Dial(url, grpc.WithInsecure())
+	conn, err := grpc.NewClient(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

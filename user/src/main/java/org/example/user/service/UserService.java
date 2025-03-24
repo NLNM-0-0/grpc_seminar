@@ -10,8 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.example.user.entity.User;
 import org.example.user.mapper.UserMapper;
 import org.example.user.repository.UserRepository;
+import org.example.user.utils.GrpcErrorUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -36,11 +39,23 @@ public class UserService extends UserServiceGrpc.UserServiceImplBase {
 			responseObserver.onCompleted();
 		} catch (DataIntegrityViolationException | PersistenceException e) {
 			responseObserver.onError(
-					new StatusRuntimeException(Status.ALREADY_EXISTS.withDescription("User name already exists"))
+					GrpcErrorUtils.newGrpcError(
+							Status.ALREADY_EXISTS,
+							"User name already exists",
+							"USER_ALREADY_EXISTS",
+							e,
+							Map.of("user_name", request.getName())
+					)
 			);
 		} catch (Exception e) {
 			responseObserver.onError(
-					new StatusRuntimeException(Status.INTERNAL.withDescription("Internal Server Error"))
+					GrpcErrorUtils.newGrpcError(
+							Status.INTERNAL,
+							"Internal Server Error",
+							"INTERNAL_ERROR",
+							e,
+							null
+					)
 			);
 		}
 	}
@@ -49,8 +64,13 @@ public class UserService extends UserServiceGrpc.UserServiceImplBase {
 	public void getUser(GetUserRequest request, StreamObserver<GetUserResponse> responseObserver) {
 		try {
 			User account = userRepository.findById(request.getId())
-										 .orElseThrow(() -> new StatusRuntimeException(
-												 Status.NOT_FOUND.withDescription("User not found")));
+										 .orElseThrow(() -> GrpcErrorUtils.newGrpcError(
+												 Status.NOT_FOUND,
+												 "User not found",
+												 "USER_NOT_FOUND",
+												 null,
+												 Map.of("user_id", request.getId())
+										 ));
 
 			GetUserResponse response = GetUserResponse.newBuilder()
 													  .setUser(userMapper.mapToUserGrpc(account))
@@ -61,7 +81,15 @@ public class UserService extends UserServiceGrpc.UserServiceImplBase {
 		} catch (StatusRuntimeException e) {
 			responseObserver.onError(e);
 		} catch (Exception e) {
-			responseObserver.onError(Status.INTERNAL.withDescription("Internal Server Error").asRuntimeException());
+			responseObserver.onError(
+					GrpcErrorUtils.newGrpcError(
+							Status.INTERNAL,
+							"Internal Server Error",
+							"INTERNAL_ERROR",
+							e,
+							null
+					)
+			);
 		}
 	}
 }

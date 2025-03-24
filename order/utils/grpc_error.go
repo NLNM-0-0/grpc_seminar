@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const GrpcErrorDomain = "product_service"
+const GrpcErrorDomain = "order_service"
 
 func NewGrpcErrorWithMetadata(code codes.Code, message string, reason string, originalErr error, metadata map[string]string) error {
 	st := status.New(code, message)
@@ -17,7 +17,7 @@ func NewGrpcErrorWithMetadata(code codes.Code, message string, reason string, or
 
 	if originalErr != nil {
 		origStatus, ok := status.FromError(originalErr)
-		if ok { //originalErr is gRPC error
+		if ok {
 			for _, detail := range origStatus.Details() {
 				if errInfo, ok := detail.(*errdetails.ErrorInfo); ok {
 					for k, v := range errInfo.Metadata {
@@ -25,6 +25,7 @@ func NewGrpcErrorWithMetadata(code codes.Code, message string, reason string, or
 					}
 				}
 			}
+
 			if _, exists := metadata["original_error"]; !exists {
 				metadata["original_error"] = message
 			}

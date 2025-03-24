@@ -3,11 +3,16 @@ package client
 import (
 	"context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	productv1 "order/gen/seminar/product/v1"
 )
 
 type ProductClient interface {
-	GetProductByIds(ctx context.Context, ids []string) ([]*productv1.Product, error)
+	GetProductByIds(
+		ctx context.Context,
+		ids []string,
+	) (productv1.ProductService_GetProductByIdsClient, error)
+	RateProductByIds(ctx context.Context) (productv1.ProductService_RateProductByIdsClient, error)
 }
 
 type productClient struct {
@@ -16,7 +21,7 @@ type productClient struct {
 }
 
 func NewProductClient(url string) (*productClient, error) {
-	conn, err := grpc.Dial(url, grpc.WithInsecure())
+	conn, err := grpc.NewClient(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -28,16 +33,23 @@ func (c *productClient) Close() {
 	c.conn.Close()
 }
 
-func (c *productClient) GetProductByIds(ctx context.Context, ids []string) ([]*productv1.Product, error) {
-	getProductByIdsResponse, err := c.serviceClient.GetProductByIds(
-		ctx,
-		&productv1.GetProductsByIdsRequest{
-			Ids: ids,
-		},
-	)
+func (c *productClient) GetProductByIds(
+	ctx context.Context,
+	ids []string,
+) (productv1.ProductService_GetProductByIdsClient, error) {
+	request := &productv1.GetProductsByIdsRequest{Ids: ids}
+	stream, err := c.serviceClient.GetProductByIds(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 
-	return getProductByIdsResponse.Products, nil
+	return stream, nil
+}
+
+func (c *productClient) RateProductByIds(ctx context.Context) (productv1.ProductService_RateProductByIdsClient, error) {
+	stream, err := c.serviceClient.RateProductByIds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
 }

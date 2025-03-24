@@ -4,16 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"io"
 	"log"
 	"net"
 	productv1 "product/gen/seminar/product/v1"
 	"product/service"
 	"product/utils"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type productServer struct {
@@ -41,15 +40,21 @@ func (server *productServer) PostProduct(ctx context.Context, request *productv1
 		if errors.As(err, &appErr) {
 			if appErr.Key == utils.DB_DUPLICATE_ERROR_CODE {
 				return nil, utils.NewGrpcErrorWithMetadata(
-					codes.AlreadyExists, "Product name already exists", utils.DB_DUPLICATE_ERROR_CODE,
-					map[string]string{"error": err.Error()},
+					codes.AlreadyExists,
+					"Product name already exists",
+					utils.DB_DUPLICATE_ERROR_CODE,
+					err,
+					nil,
 				)
 			}
 		}
 
 		return nil, utils.NewGrpcErrorWithMetadata(
-			codes.Internal, "Failed to create product", "INTERNAL_ERROR",
-			map[string]string{"error": err.Error()},
+			codes.Internal,
+			"Failed to create product",
+			"INTERNAL_ERROR",
+			err,
+			nil,
 		)
 	}
 	return &productv1.PostProductResponse{Product: &productv1.Product{
@@ -93,12 +98,10 @@ func (server *productServer) GetProductByIds(request *productv1.GetProductsByIds
 		if err := stream.Send(res); err != nil {
 			return utils.NewGrpcErrorWithMetadata(
 				codes.Aborted,
-				fmt.Sprintf("Error sending product ID %s", id),
+				"Failed to send stream request",
 				"STREAM_SEND_ERROR",
-				map[string]string{
-					"error":      err.Error(),
-					"product_id": id,
-				},
+				err,
+				nil,
 			)
 		}
 	}
@@ -110,18 +113,16 @@ func (server *productServer) RateProductByIds(stream grpc.BidiStreamingServer[pr
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
-			log.Println("RateProductByIds: stream closed by client")
 			return nil
 		}
 		if err != nil {
 			log.Println(err)
 			return utils.NewGrpcErrorWithMetadata(
-				codes.Unknown,
+				codes.Aborted,
 				"Failed to receive stream request",
 				"STREAM_RECEIVE_ERROR",
-				map[string]string{
-					"error": err.Error(),
-				},
+				err,
+				map[string]string{},
 			)
 		}
 
@@ -139,8 +140,8 @@ func (server *productServer) RateProductByIds(stream grpc.BidiStreamingServer[pr
 				codes.Internal,
 				fmt.Sprintf("Error adding rating product ID %s", productId),
 				"ADD_RATING_ERROR",
+				err,
 				map[string]string{
-					"error":      err.Error(),
 					"product_id": productId,
 				},
 			)
@@ -158,10 +159,8 @@ func (server *productServer) RateProductByIds(stream grpc.BidiStreamingServer[pr
 				codes.Aborted,
 				fmt.Sprintf("Error rating product ID %s", productId),
 				"STREAM_SEND_ERROR",
-				map[string]string{
-					"error":      err.Error(),
-					"product_id": productId,
-				},
+				err,
+				nil,
 			)
 		}
 	}
@@ -175,8 +174,8 @@ func (server *productServer) handleGetProductDBError(err error, id string) error
 				codes.NotFound,
 				fmt.Sprintf("Product with ID %s not found", id),
 				utils.DB_RECORD_NOT_FOUND_CODE,
+				err,
 				map[string]string{
-					"error":      err.Error(),
 					"product_id": id,
 				},
 			)
@@ -184,7 +183,10 @@ func (server *productServer) handleGetProductDBError(err error, id string) error
 	}
 
 	return utils.NewGrpcErrorWithMetadata(
-		codes.Internal, "Failed to get product", "INTERNAL_ERROR",
-		map[string]string{"error": err.Error()},
+		codes.Internal,
+		"Failed to get product",
+		"PRODUCT_DATABASE_ERROR",
+		err,
+		nil,
 	)
 }

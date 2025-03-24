@@ -27,7 +27,6 @@ func (repo *productRepo) CreateProduct(ctx context.Context, data *model.Product)
 	db := repo.db
 
 	if err := db.Create(data).Error; err != nil {
-		println("Hello")
 		if gormErr := utils.GetGormErr(err); gormErr != nil {
 			switch key := gormErr.GetDuplicateErrorKey("name"); key {
 			case "name":
@@ -46,7 +45,7 @@ func (repo *productRepo) GetProductById(ctx context.Context, productId string) (
 
 	if err := db.Where(map[string]interface{}{"id": productId}).First(&data).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, utils.ErrRecordNotFound()
+			return nil, utils.ErrRecordNotFound(err, "product.id")
 		}
 		return nil, utils.ErrDB(err)
 	}
@@ -60,7 +59,7 @@ func (repo *productRepo) GetProductByIds(ctx context.Context, productIds []strin
 
 	if err := db.Where("id IN ?", productIds).Find(&products).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, utils.ErrRecordNotFound()
+			return nil, utils.ErrRecordNotFound(err, "product.id")
 		}
 		return nil, utils.ErrDB(err)
 	}

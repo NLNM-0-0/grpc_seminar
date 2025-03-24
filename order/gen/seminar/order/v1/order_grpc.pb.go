@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	OrderService_PostOrder_FullMethodName        = "/seminar.order.v1.OrderService/PostOrder"
-	OrderService_GetOrdersForUser_FullMethodName = "/seminar.order.v1.OrderService/GetOrdersForUser"
+	OrderService_PostOrder_FullMethodName = "/seminar.order.v1.OrderService/PostOrder"
+	OrderService_RateOrder_FullMethodName = "/seminar.order.v1.OrderService/RateOrder"
 )
 
 // OrderServiceClient is the client API for OrderService service.
@@ -28,7 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrderServiceClient interface {
 	PostOrder(ctx context.Context, in *PostOrderRequest, opts ...grpc.CallOption) (*PostOrderResponse, error)
-	GetOrdersForUser(ctx context.Context, in *GetOrdersForUserRequest, opts ...grpc.CallOption) (*GetOrdersForUserResponse, error)
+	RateOrder(ctx context.Context, in *RateOrderRequest, opts ...grpc.CallOption) (*RateOrderResponse, error)
 }
 
 type orderServiceClient struct {
@@ -49,10 +49,10 @@ func (c *orderServiceClient) PostOrder(ctx context.Context, in *PostOrderRequest
 	return out, nil
 }
 
-func (c *orderServiceClient) GetOrdersForUser(ctx context.Context, in *GetOrdersForUserRequest, opts ...grpc.CallOption) (*GetOrdersForUserResponse, error) {
+func (c *orderServiceClient) RateOrder(ctx context.Context, in *RateOrderRequest, opts ...grpc.CallOption) (*RateOrderResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetOrdersForUserResponse)
-	err := c.cc.Invoke(ctx, OrderService_GetOrdersForUser_FullMethodName, in, out, cOpts...)
+	out := new(RateOrderResponse)
+	err := c.cc.Invoke(ctx, OrderService_RateOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (c *orderServiceClient) GetOrdersForUser(ctx context.Context, in *GetOrders
 // for forward compatibility.
 type OrderServiceServer interface {
 	PostOrder(context.Context, *PostOrderRequest) (*PostOrderResponse, error)
-	GetOrdersForUser(context.Context, *GetOrdersForUserRequest) (*GetOrdersForUserResponse, error)
+	RateOrder(context.Context, *RateOrderRequest) (*RateOrderResponse, error)
 }
 
 // UnimplementedOrderServiceServer should be embedded to have
@@ -77,8 +77,8 @@ type UnimplementedOrderServiceServer struct{}
 func (UnimplementedOrderServiceServer) PostOrder(context.Context, *PostOrderRequest) (*PostOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PostOrder not implemented")
 }
-func (UnimplementedOrderServiceServer) GetOrdersForUser(context.Context, *GetOrdersForUserRequest) (*GetOrdersForUserResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOrdersForUser not implemented")
+func (UnimplementedOrderServiceServer) RateOrder(context.Context, *RateOrderRequest) (*RateOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RateOrder not implemented")
 }
 func (UnimplementedOrderServiceServer) testEmbeddedByValue() {}
 
@@ -118,20 +118,20 @@ func _OrderService_PostOrder_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OrderService_GetOrdersForUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetOrdersForUserRequest)
+func _OrderService_RateOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RateOrderRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OrderServiceServer).GetOrdersForUser(ctx, in)
+		return srv.(OrderServiceServer).RateOrder(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: OrderService_GetOrdersForUser_FullMethodName,
+		FullMethod: OrderService_RateOrder_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OrderServiceServer).GetOrdersForUser(ctx, req.(*GetOrdersForUserRequest))
+		return srv.(OrderServiceServer).RateOrder(ctx, req.(*RateOrderRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -148,8 +148,8 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _OrderService_PostOrder_Handler,
 		},
 		{
-			MethodName: "GetOrdersForUser",
-			Handler:    _OrderService_GetOrdersForUser_Handler,
+			MethodName: "RateOrder",
+			Handler:    _OrderService_RateOrder_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
