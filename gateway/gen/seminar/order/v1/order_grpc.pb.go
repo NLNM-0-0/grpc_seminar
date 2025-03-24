@@ -20,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	OrderService_PostOrder_FullMethodName = "/seminar.order.v1.OrderService/PostOrder"
-	OrderService_RateOrder_FullMethodName = "/seminar.order.v1.OrderService/RateOrder"
 )
 
 // OrderServiceClient is the client API for OrderService service.
@@ -28,7 +27,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrderServiceClient interface {
 	PostOrder(ctx context.Context, in *PostOrderRequest, opts ...grpc.CallOption) (*PostOrderResponse, error)
-	RateOrder(ctx context.Context, in *RateOrderRequest, opts ...grpc.CallOption) (*RateOrderResponse, error)
 }
 
 type orderServiceClient struct {
@@ -49,22 +47,11 @@ func (c *orderServiceClient) PostOrder(ctx context.Context, in *PostOrderRequest
 	return out, nil
 }
 
-func (c *orderServiceClient) RateOrder(ctx context.Context, in *RateOrderRequest, opts ...grpc.CallOption) (*RateOrderResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RateOrderResponse)
-	err := c.cc.Invoke(ctx, OrderService_RateOrder_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // OrderServiceServer is the server API for OrderService service.
 // All implementations should embed UnimplementedOrderServiceServer
 // for forward compatibility.
 type OrderServiceServer interface {
 	PostOrder(context.Context, *PostOrderRequest) (*PostOrderResponse, error)
-	RateOrder(context.Context, *RateOrderRequest) (*RateOrderResponse, error)
 }
 
 // UnimplementedOrderServiceServer should be embedded to have
@@ -76,9 +63,6 @@ type UnimplementedOrderServiceServer struct{}
 
 func (UnimplementedOrderServiceServer) PostOrder(context.Context, *PostOrderRequest) (*PostOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PostOrder not implemented")
-}
-func (UnimplementedOrderServiceServer) RateOrder(context.Context, *RateOrderRequest) (*RateOrderResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RateOrder not implemented")
 }
 func (UnimplementedOrderServiceServer) testEmbeddedByValue() {}
 
@@ -118,24 +102,6 @@ func _OrderService_PostOrder_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OrderService_RateOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RateOrderRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(OrderServiceServer).RateOrder(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: OrderService_RateOrder_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OrderServiceServer).RateOrder(ctx, req.(*RateOrderRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // OrderService_ServiceDesc is the grpc.ServiceDesc for OrderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -146,10 +112,6 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PostOrder",
 			Handler:    _OrderService_PostOrder_Handler,
-		},
-		{
-			MethodName: "RateOrder",
-			Handler:    _OrderService_RateOrder_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -11,11 +11,9 @@ import (
 	"net"
 	"order/client"
 	orderv1 "order/gen/seminar/order/v1"
-	productv1 "order/gen/seminar/product/v1"
 	"order/model"
 	"order/service"
 	"order/utils"
-	"sync"
 )
 
 type orderServer struct {
@@ -160,94 +158,4 @@ func getProductIdsFromRequest(request *orderv1.PostOrderRequest) []string {
 		productIds = append(productIds, product.ProductId)
 	}
 	return productIds
-}
-
-func (server *orderServer) RateOrder(ctx context.Context, request *orderv1.RateOrderRequest) (*orderv1.RateOrderResponse, error) {
-	stream, err := server.productClient.RateProductByIds(ctx)
-	if err != nil {
-		log.Println(err)
-		return nil, utils.NewGrpcErrorWithMetadata(
-			codes.Unknown,
-			"Failed to call RateProductByIds",
-			"RATE_PRODUCT_ERROR",
-			err,
-			nil,
-		)
-	}
-
-	var wg sync.WaitGroup
-	errCh := make(chan error, 1)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for _, rating := range request.Products {
-			if err := stream.Send(rating); err != nil {
-				log.Println(err)
-				select {
-				case errCh <- utils.NewGrpcErrorWithMetadata(
-					codes.Aborted,
-					fmt.Sprintf("Failed to send stream request"),
-					"STREAM_SEND_ERROR",
-					err,
-					nil,
-				):
-				default:
-				}
-				return
-			}
-		}
-
-		if err := stream.CloseSend(); err != nil {
-			log.Println(err)
-			select {
-			case errCh <- utils.NewGrpcErrorWithMetadata(
-				codes.Aborted,
-				fmt.Sprintf("Failed to close stream request"),
-				"STREAM_CLOSE_ERROR",
-				err,
-				nil,
-			):
-			default:
-			}
-		}
-	}()
-
-	var responses []*productv1.RateProductByIdsResponse
-
-	for {
-		select {
-		case err := <-errCh:
-			return nil, err
-		default:
-		}
-
-		res, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Println(err)
-			return nil, utils.NewGrpcErrorWithMetadata(
-				codes.Internal,
-				"Failed to receive stream response",
-				"STREAM_RECEIVE_ERROR",
-				err,
-				nil,
-			)
-		}
-		responses = append(responses, res)
-	}
-
-	wg.Wait()
-
-	select {
-	case err := <-errCh:
-		return nil, err
-	default:
-	}
-
-	return &orderv1.RateOrderResponse{
-		Ratings: responses,
-	}, nil
 }

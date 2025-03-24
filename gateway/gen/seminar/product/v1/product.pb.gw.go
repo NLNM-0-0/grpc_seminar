@@ -2,11 +2,11 @@
 // source: seminar/product/v1/product.proto
 
 /*
-Package v1 is a reverse proxy.
+Package productv1 is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package v1
+package productv1
 
 import (
 	"context"
