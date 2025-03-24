@@ -71,5 +71,7 @@ func loadConfig() (*appConfig, error) {
 		Env:                    os.Getenv("GO_ENV"),
 		Port:                   portNumber,
 		ProductServiceEndpoint: os.Getenv("PRODUCT_SERVICE_ENDPOINT"),
+		UserServiceEndpoint:    os.Getenv("USER_SERVICE_ENDPOINT"),
+		OrderServiceEndpoint:   os.Getenv("ORDER_SERVICE_ENDPOINT"),
 	}, nil
 }

@@ -8,6 +8,9 @@ managed:
     - file_option: go_package
       module: buf.build/googleapis/googleapis
       value: gateway/gen/google/api
+    - file_option: go_package
+      path: seminar/product/v1
+      value: gateway/gen/seminar/product/v1
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen
@@ -24,6 +27,8 @@ plugins:
     out: gen
     opt:
       - paths=source_relative
+  - remote: buf.build/grpc-ecosystem/openapiv2
+    out: docs
 inputs:
   - module: buf.build/nlnm-0-0/seminar
     types:
