@@ -46,7 +46,7 @@ func run(cfg *appConfig) error {
 		return err
 	}
 
-	return http.ListenAndServe(":8080", mux)
+	return http.ListenAndServe(strconv.Itoa(cfg.Port), mux)
 }
 
 func main() {
