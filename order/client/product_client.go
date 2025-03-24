@@ -8,6 +8,7 @@ import (
 )
 
 type ProductClient interface {
+	Close()
 	GetProductByIds(
 		ctx context.Context,
 		ids []string,

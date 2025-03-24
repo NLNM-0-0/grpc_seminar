@@ -8,6 +8,7 @@ import (
 )
 
 type UserClient interface {
+	Close()
 	GetUser(ctx context.Context, userId string) (*userv1.User, error)
 }
 
