@@ -27,8 +27,6 @@ plugins:
     out: gen
     opt:
       - paths=source_relative
-  - remote: buf.build/grpc-ecosystem/openapiv2
-    out: docs
 inputs:
   - module: buf.build/nlnm-0-0/seminar
     types:
